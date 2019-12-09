@@ -28,6 +28,15 @@ class Program:
         else:
             raise ValueError("Unknown mode {}".format(mode))
 
+    def set_value(self, ip, mode, value):
+        assert mode != 1
+        if mode == 0:
+            self.opcodes[self.opcodes[ip]] = value
+        elif mode == 2:
+            self.opcodes[self.relative_base + self.opcodes[ip]] = value
+        else:
+            raise ValueError("Unknown mode {}".format(mode))
+
     def step(self):
         if self.stopped:
             return False
@@ -37,29 +46,26 @@ class Program:
         debug("Op: ", op)
         if opcode == 1:
             # Add
-            assert opcodes[self.ip]//10000 == 0
             mode1 = (op//100) % 10
             mode2 = (op//1000) % 10
             mode3 = (op//10000) % 10
-            assert mode3 == 0
             op1 = self.get_value(self.ip + 1, mode1)
             op2 = self.get_value(self.ip + 2, mode2)
-            opcodes[opcodes[self.ip + 3]] = op1 + op2
+            self.set_value(self.ip + 3, mode3, op1 + op2)
             self.ip += 4
         elif opcode == 2:
             # Mul
-            assert opcodes[self.ip]//10000 == 0
             mode1 = (op//100) % 10
             mode2 = (op//1000) % 10
             mode3 = (op//10000) % 10
-            assert mode3 == 0
             op1 = self.get_value(self.ip + 1, mode1)
             op2 = self.get_value(self.ip + 2, mode2)
-            opcodes[opcodes[self.ip + 3]] = op1 * op2
+            self.set_value(self.ip + 3, mode3, op1 * op2)
             self.ip += 4
         elif opcode == 3:
             # Input
-            opcodes[opcodes[self.ip+1]] = self.input.pop(0)
+            mode1 = (op//100) % 10
+            self.set_value(self.ip + 1, mode1, self.input.pop(0))
             self.ip += 2
         elif opcode == 4:
             # Output
@@ -91,20 +97,19 @@ class Program:
             # Less than
             mode1 = (op//100) % 10
             mode2 = (op//1000) % 10
+            mode3 = (op//10000) % 10
             op1 = self.get_value(self.ip + 1, mode1)
             op2 = self.get_value(self.ip + 2, mode2)
-            op3 = opcodes[self.ip + 3]
-            opcodes[op3] = int(op1 < op2)
+            self.set_value(self.ip + 3, mode3, int(op1 < op2))
             self.ip += 4
         elif opcode == 8:
             # Equal
             mode1 = (op//100) % 10
             mode2 = (op//1000) % 10
+            mode3 = (op//10000) % 10
             op1 = self.get_value(self.ip + 1, mode1)
             op2 = self.get_value(self.ip + 2, mode2)
-            op3 = opcodes[self.ip + 3]
-            debug("Setting ", op1==op2, "at", op3)
-            opcodes[op3] = int(op1 == op2)
+            self.set_value(self.ip + 3, mode3, int(op1 == op2))
             self.ip += 4
         elif opcode == 9:
             mode1 = (op//100) % 10
@@ -126,6 +131,11 @@ def main():
 
     output = []
     p = Program(program, input=[1], output=output)
+    while p.step():
+        pass
+    print(output)
+    output.clear()
+    p = Program(program, input=[2], output=output)
     while p.step():
         pass
     print(output)
